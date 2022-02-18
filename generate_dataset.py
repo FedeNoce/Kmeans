@@ -2,16 +2,18 @@ import os
 
 import sklearn.datasets as datasets
 import pandas as pd
-import matplotlib.pyplot as plt
 
 
-def generate_dataset(points, n_features, centers, std, file_name, output_directory):
-    data, __= datasets.make_blobs(n_samples=points, n_features=n_features, centers=centers, cluster_std=std, shuffle=True, random_state=1000)
+
+
+def generate_dataset(points, n_features, centers, std, file_name, centroids_file_name, output_directory):
+    data, __, centroids = datasets.make_blobs(n_samples=points, n_features=n_features, centers=centers, cluster_std=std, shuffle=True, random_state=1000, return_centers=True)
     pd.DataFrame(data).to_csv(
         os.path.join(output_directory, file_name), header=False, index=False
     )
-    pd.DataFrame(data).plot(kind='scatter', x='first', y='second', color='red')
-    plt.show()
+    pd.DataFrame(centroids).to_csv(
+        os.path.join(output_directory, centroids_file_name), header=False, index=False
+    )
 
 def main():
 
@@ -20,7 +22,7 @@ def main():
 
     # two dimensional datasets
 
-    generate_dataset(points=1000, n_features=2, centers=2, std=1, file_name=f'2D_data_3.csv', output_directory=DATASETS_DIR)
+    generate_dataset(points=4000, n_features=2, centers=5, std=1, file_name=f'2D_data_3.csv', centroids_file_name=f'2D_data_3_centroids.csv', output_directory=DATASETS_DIR)
 
 
     # '''Datasets with an increasing number of points'''
