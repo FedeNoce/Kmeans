@@ -1,18 +1,20 @@
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include <string.h>
 
-#define N 1000
-#define K 3
+#define N 4000
+#define K 5
 #define MAX_ITER 10
-#define TPB 32
+#define TPB 256
 
 
 __device__ float distance_2D(float x1, float x2, float y1, float y2)
 {
-    return sqrt(((y1-x1)*(y1-x1)) + ((y2-x2)*(y2-x2)));
+    return sqrt(pow((x1-y1),2) + pow((x2-y2),2));
+    //return abs((x1-y1) + (x2-y2));
 }
 
 
@@ -28,7 +30,8 @@ __global__ void kMeansClusterAssignment(float *d_datapoints_x, float *d_datapoin
     float min_dist = INFINITY;
     int closest_centroid = 0;
 
-    for(int c = 0; c<K;++c)
+    for(int c = 0; c<K; ++c)
+
     {
         float dist = distance_2D(d_datapoints_x[idx], d_datapoints_y[idx], d_centroids_x[c], d_centroids_y[c]);
 
@@ -44,7 +47,7 @@ __global__ void kMeansClusterAssignment(float *d_datapoints_x, float *d_datapoin
 }
 
 
-__global__ void kMeansCentroidUpdate(float *d_datapoints_x, float *d_datapoints_y, int *d_clust_assn, float *d_centroids_x, float *d_centroids_y, int *d_clust_sizes)
+__global__ void kMeansCentroidUpdate(const float *d_datapoints_x, const float *d_datapoints_y, const int *d_clust_assn, float *d_centroids_x, float *d_centroids_y, float *d_clust_sizes)
 {
 
     //get idx of thread at grid level
@@ -72,18 +75,17 @@ __global__ void kMeansCentroidUpdate(float *d_datapoints_x, float *d_datapoints_
     {
         float b_clust_datapoint_sums_x[K]={0};
         float b_clust_datapoint_sums_y[K]={0};
-        int b_clust_sizes[K]={0};
+        float b_clust_sizes[K]={0};
 
-        for(int j=0; j< blockDim.x; j=j+1)
+        for(int j=0; j < blockDim.x; ++j)
         {
             int clust_id = s_clust_assn[j];
             b_clust_datapoint_sums_x[clust_id]+=s_datapoints_x[j];
             b_clust_datapoint_sums_y[clust_id]+=s_datapoints_y[j];
             b_clust_sizes[clust_id]+=1;
         }
-
         //Now we add the sums to the global centroids and add the counts to the global counts.
-        for(int z=0; z < K; z=z+1)
+        for(int z=0; z < K; ++z)
         {
             atomicAdd(&d_centroids_x[z],b_clust_datapoint_sums_x[z]);
             atomicAdd(&d_centroids_y[z],b_clust_datapoint_sums_y[z]);
@@ -108,19 +110,21 @@ int main()
 {
     srand(time(NULL));   // Initialization, should only be called once.
     FILE *fpt;
+    FILE *fpt_centroids;
 
     fpt = fopen("/home/federico/CLionProjects/kmeans/datasets/2D_data_3.csv", "r");
+    fpt_centroids = fopen("/home/federico/CLionProjects/kmeans/datasets/2D_data_3_centroids.csv", "r");
 
     //allocate memory on the device for the data points
-    float *d_datapoints_x=0;
-    float *d_datapoints_y=0;
+    float *d_datapoints_x;
+    float *d_datapoints_y;
     //allocate memory on the device for the cluster assignments
-    int *d_clust_assn = 0;
+    int *d_clust_assn;
     //allocate memory on the device for the cluster centroids
-    float *d_centroids_x = 0;
-    float *d_centroids_y = 0;
+    float *d_centroids_x;
+    float *d_centroids_y;
     //allocate memory on the device for the cluster sizes
-    int *d_clust_sizes=0;
+    float *d_clust_sizes;
 
     cudaMalloc(&d_datapoints_x, N*sizeof(float));
     cudaMalloc(&d_datapoints_y, N*sizeof(float));
@@ -154,6 +158,7 @@ int main()
         int r = rand() % N;
         h_centroids_x[i]=h_datapoints_x[r];
         h_centroids_y[i]=h_datapoints_y[r];
+        //fscanf(fpt_centroids,"%f,%f\n", &h_centroids_x[i], &h_centroids_y[i]);
         printf("(%f, %f) \n",  h_centroids_x[i], h_centroids_y[i]);
         h_clust_sizes[i]=0;
     }
@@ -164,17 +169,20 @@ int main()
     cudaMemcpy(d_centroids_y,h_centroids_y,K*sizeof(float),cudaMemcpyHostToDevice);
     cudaMemcpy(d_datapoints_x,h_datapoints_x,N*sizeof(float),cudaMemcpyHostToDevice);
     cudaMemcpy(d_datapoints_y,h_datapoints_y,N*sizeof(float),cudaMemcpyHostToDevice);
-    cudaMemcpy(d_clust_assn,h_clust_assn,N*sizeof(int),cudaMemcpyHostToDevice);
-    cudaMemcpy(d_clust_sizes,h_clust_sizes,K*sizeof(int),cudaMemcpyHostToDevice);
+    //cudaMemcpy(d_clust_assn,h_clust_assn,N*sizeof(int),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_clust_sizes,h_clust_sizes,K*sizeof(float),cudaMemcpyHostToDevice);
 
-    int cur_iter = 1;
+    int cur_iter = 0;
 
     while(cur_iter < MAX_ITER)
     {
         printf("Iter %d: \n",cur_iter);
         //call cluster assignment kernel
 
-        kMeansClusterAssignment<<<(N+TPB)/TPB,TPB>>>(d_datapoints_x, d_datapoints_x, d_clust_assn, d_centroids_x, d_centroids_x);
+        dim3 gDim(int((N+TPB-1)/TPB));
+        dim3 bDim(TPB);
+
+        kMeansClusterAssignment<<<(N+TPB-1)/TPB, TPB>>>(d_datapoints_x, d_datapoints_y, d_clust_assn, d_centroids_x, d_centroids_y);
 
         //copy new centroids back to host
         cudaMemcpy(h_centroids_x,d_centroids_x,K*sizeof(float),cudaMemcpyDeviceToHost);
@@ -186,16 +194,22 @@ int main()
 
             printf("C %d: (%f, %f)\n",i,h_centroids_x[i],h_centroids_y[i]);
         }
-
         //reset centroids and cluster sizes (will be updated in the next kernel)
         cudaMemset(d_centroids_x,0.0,K*sizeof(float));
         cudaMemset(d_centroids_y,0.0,K*sizeof(float));
         cudaMemset(d_clust_sizes,0,K*sizeof(int));
 
         //call centroid update kernel
-        kMeansCentroidUpdate<<<(N+TPB)/TPB,TPB>>>(d_datapoints_x, d_datapoints_y, d_clust_assn, d_centroids_x, d_centroids_y, d_clust_sizes);
+        //kMeansCentroidUpdate<<<gDim, bDim>>>(d_datapoints_x, d_datapoints_y, d_clust_assn, d_centroids_x, d_centroids_y, d_clust_sizes);
+        kMeansCentroidUpdate<<<(N+TPB-1)/TPB, TPB>>>(d_datapoints_x, d_datapoints_y, d_clust_assn, d_centroids_x, d_centroids_y, d_clust_sizes);
 
         cur_iter+=1;
+    }
+    FILE *res;
+
+    res = fopen("/home/federico/CLionProjects/kmeans/results/2D_data_3_results.csv", "w+");
+    for(int i=0;i<N;i++){
+        fprintf(res,"%d\n", h_clust_assn[i]);
     }
 
     cudaFree(d_datapoints_x);
@@ -209,6 +223,7 @@ int main()
     free(h_centroids_y);
     free(h_datapoints_x);
     free(h_datapoints_y);
+    free(h_clust_assn);
     free(h_clust_sizes);
 
     return 0;
