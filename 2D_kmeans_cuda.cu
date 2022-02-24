@@ -5,20 +5,19 @@
 #include <string.h>
 
 
-#define N 4000
-#define K 3
-#define MAX_ITER 20
+#define N 100000
+#define K 4
+#define MAX_ITER 50
 #define TPB 256
-#define EPSILON 1e-10
+#define EPSILON 0.00000001
 
-__device__ float distance_2D(float x1, float x2, float y1, float y2)
+__device__ float distance_2D(const float x1, const float x2, const float y1, const float y2)
 {
     return sqrt(pow((x1-y1),2) + pow((x2-y2),2));
-    //return abs((x1-y1) + (x2-y2));
 }
 
 
-__global__ void kMeansClusterAssignment(float *d_datapoints_x, float *d_datapoints_y, int *d_clust_assn, float *d_centroids_x, float *d_centroids_y)
+__global__ void kMeansClusterAssignment(const float *d_datapoints_x, const float *d_datapoints_y, int *d_clust_assn, const float *d_centroids_x, const float *d_centroids_y)
 {
     //get idx for this datapoint
     const int idx = blockIdx.x*blockDim.x + threadIdx.x;
@@ -47,11 +46,12 @@ __global__ void kMeansClusterAssignment(float *d_datapoints_x, float *d_datapoin
 }
 
 
-__global__ void kMeansCentroidUpdate(const float *d_datapoints_x, const float *d_datapoints_y, const int *d_clust_assn, float *d_centroids_x, float *d_centroids_y, float *d_clust_sizes)
+__global__ void kMeansCentroidUpdate_Sum(const float *d_datapoints_x, const float *d_datapoints_y, const int *d_clust_assn, float *d_centroids_x, float *d_centroids_y, float *d_clust_sizes)
 {
 
     //get idx of thread at grid level
     const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
 
     if (idx >= N) return;
 
@@ -91,8 +91,6 @@ __global__ void kMeansCentroidUpdate(const float *d_datapoints_x, const float *d
             atomicAdd(&d_centroids_y[z],b_clust_datapoint_sums_y[z]);
             atomicAdd(&d_clust_sizes[z],b_clust_sizes[z]);
         }
-
-
     }
 
     __syncthreads();
@@ -104,18 +102,21 @@ __global__ void kMeansCentroidUpdate(const float *d_datapoints_x, const float *d
     }
 
 }
+__global__ void kMeansCentroidUpdate_Div(float *d_centroids_x, float *d_centroids_y, float *d_clust_sizes){
+    int idx = threadIdx.x;
+    d_centroids_x[idx] = d_centroids_x[idx]/d_clust_sizes[idx];
+    d_centroids_y[idx] = d_centroids_y[idx]/d_clust_sizes[idx];
+}
 
 //Function to stop the algorithm when convergence is reached
 int compareArrays(float a[], float b[], int n) {
     int i;
     for(i=0; i<n; i++){
-        if(a[i]-b[i] > EPSILON)
+        if(abs(a[i]-b[i]) > EPSILON)
             return 0;
     }
     return 1;
 }
-
-
 
 
 int main()
@@ -125,6 +126,7 @@ int main()
     //FILE *fpt_centroids;
 
     fpt = fopen("/home/federico/CLionProjects/kmeans_cuda/datasets/2D_data_3.csv", "r");
+    //fpt = fopen("/home/federico/CLionProjects/kmeans_cuda/datasets/2D_data_uniform.csv", "r");
     //fpt_centroids = fopen("/home/federico/CLionProjects/kmeans_cuda/datasets/2D_data_3_centroids.csv", "r");
 
     //allocate memory on the device for the data points
@@ -159,33 +161,35 @@ int main()
 
     //initalize datapoints from csv
     printf("DataPoints: \n");
-    for(int i=0;i<N;i++){
+    for(int i=0;i<N;++i){
         fscanf(fpt,"%f,%f\n", &h_datapoints_x[i], &h_datapoints_y[i]);
         printf("(%f, %f) \n",  h_datapoints_x[i], h_datapoints_y[i]);
-        //fprintf(fpt,"%f, %f\n", h_datapoints_x[i], h_datapoints_y[i]);
     }
     fclose(fpt);
 
 
     //initialize centroids, choose k-random points from datapoints
     printf("Clusters: \n");
-    for(int i=0;i<K;i++){
+    for(int i=0;i<K;++i){
         int r = rand() % N;
-        h_centroids_x[i]=h_datapoints_x[r];
-        h_centroids_y[i]=h_datapoints_y[r];
-        //fscanf(fpt_centroids,"%f,%f\n", &h_centroids_x[i], &h_centroids_y[i]);
+        h_centroids_x[i] = h_datapoints_x[r];
+        h_centroids_y[i] = h_datapoints_y[r];
+        h_current_centroids_x[i]=0.0;
+        h_current_centroids_y[i]=0.0;
         printf("(%f, %f) \n",  h_centroids_x[i], h_centroids_y[i]);
         h_clust_sizes[i]=0;
     }
 
 
-    //copy datapoints from host to device
+
+    //copy datapoints and all other data from host to device
     cudaMemcpy(d_centroids_x,h_centroids_x,K*sizeof(float),cudaMemcpyHostToDevice);
     cudaMemcpy(d_centroids_y,h_centroids_y,K*sizeof(float),cudaMemcpyHostToDevice);
     cudaMemcpy(d_datapoints_x,h_datapoints_x,N*sizeof(float),cudaMemcpyHostToDevice);
     cudaMemcpy(d_datapoints_y,h_datapoints_y,N*sizeof(float),cudaMemcpyHostToDevice);
-    //cudaMemcpy(d_clust_assn,h_clust_assn,N*sizeof(int),cudaMemcpyHostToDevice);
     cudaMemcpy(d_clust_sizes,h_clust_sizes,K*sizeof(float),cudaMemcpyHostToDevice);
+
+
 
     //Start time for clustering
     clock_t start = clock();
@@ -196,10 +200,6 @@ int main()
         printf("Iter %d: \n",cur_iter);
         //Start time for iteration
         clock_t start_iter = clock();
-        //call cluster assignment kernel
-
-        dim3 gDim(int((N+TPB-1)/TPB));
-        dim3 bDim(TPB);
 
         //Points assg
         kMeansClusterAssignment<<<(N+TPB-1)/TPB, TPB>>>(d_datapoints_x, d_datapoints_y, d_clust_assn, d_centroids_x, d_centroids_y);
@@ -207,6 +207,7 @@ int main()
         //copy new centroids back to host
         cudaMemcpy(h_centroids_x,d_centroids_x,K*sizeof(float),cudaMemcpyDeviceToHost);
         cudaMemcpy(h_centroids_y,d_centroids_y,K*sizeof(float),cudaMemcpyDeviceToHost);
+
         //copy assg back to host
         cudaMemcpy(h_clust_assn,d_clust_assn,N*sizeof(int),cudaMemcpyDeviceToHost);
 
@@ -219,7 +220,19 @@ int main()
         cudaMemset(d_clust_sizes,0,K*sizeof(int));
 
         //call centroid update
-        kMeansCentroidUpdate<<<(N+TPB-1)/TPB, TPB>>>(d_datapoints_x, d_datapoints_y, d_clust_assn, d_centroids_x, d_centroids_y, d_clust_sizes);
+        kMeansCentroidUpdate_Sum<<<(N+TPB-1)/TPB, TPB>>>(d_datapoints_x, d_datapoints_y, d_clust_assn, d_centroids_x, d_centroids_y, d_clust_sizes);
+
+        //kMeansCentroidUpdate_Div<<<1, K>>>(d_centroids_x, d_centroids_y, d_clust_sizes);
+
+/*
+        cudaMemcpy(h_current_centroids_x,d_centroids_x,K*sizeof(float),cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_current_centroids_y,d_centroids_y,K*sizeof(float),cudaMemcpyDeviceToHost);
+        for(int i=0;i<K;++i){
+            printf("h(%f, %f) \n",  h_current_centroids_x[i], h_current_centroids_y[i]);
+            h_clust_sizes[i]=0;
+        }
+*/
+
 
         //Stop time for iteration
         clock_t end_iter = clock();
@@ -233,12 +246,14 @@ int main()
         if(compareArrays(h_current_centroids_x, h_centroids_x, K) && compareArrays(h_current_centroids_y, h_centroids_y, K))
             break;
 
+
         cur_iter+=1;
     }
+
+
     clock_t end = clock();
     float seconds = (float)(end - start) / CLOCKS_PER_SEC;
     printf("Time for clustering: %f\n", seconds);
-    //printf("Time for iter: %f", seconds_iter);
 
     FILE *res;
 
@@ -256,6 +271,8 @@ int main()
 
     free(h_centroids_x);
     free(h_centroids_y);
+    free(h_current_centroids_x);
+    free(h_current_centroids_y);
     free(h_datapoints_x);
     free(h_datapoints_y);
     free(h_clust_assn);
