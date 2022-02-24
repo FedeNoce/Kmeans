@@ -22,7 +22,7 @@ def main():
 
     # two dimensional datasets
 
-    generate_dataset(points=4000, n_features=2, centers=5, std=1, file_name=f'2D_data_3.csv', centroids_file_name=f'2D_data_3_centroids.csv', output_directory=DATASETS_DIR)
+    generate_dataset(points=5000, n_features=2, centers=5, std=1, file_name=f'2D_data_3.csv', centroids_file_name=f'2D_data_3_centroids.csv', output_directory=DATASETS_DIR)
 
 
     # '''Datasets with an increasing number of points'''
