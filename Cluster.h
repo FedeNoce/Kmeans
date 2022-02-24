@@ -1,6 +1,4 @@
-//
-// Created by federico on 24/02/22.
-//
+
 
 #ifndef KMEANS_CUDA_CLUSTER_H
 #define KMEANS_CUDA_CLUSTER_H
