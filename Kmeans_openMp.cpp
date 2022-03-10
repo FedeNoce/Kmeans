@@ -6,60 +6,45 @@
 #include "Point.h"
 #include "Cluster.h"
 #include <omp.h>
+#include <string>
+#include <vector>
+#include <c++/8/sstream>
+
 
 using namespace std;
 using namespace std::chrono;
 
-double max_range = 1000;
-int num_point = 4000;
+int num_point = 10000;
 int num_cluster = 5;
-int max_iterations = 10;
+int max_iterations = 20;
 
-vector<Point> init_point(int num_point);
-vector<Cluster> init_cluster(int num_cluster);
+vector<Point> init_point();
+vector<Cluster> init_cluster(vector<Point> points);
 void compute_distance(vector<Point> &points, vector<Cluster> &clusters);
 double euclidean_dist(Point point, Cluster cluster);
 bool update_clusters(vector<Cluster> &clusters);
 void draw_chart_gnu(vector<Point> &points);
 
-int main() {
 
+int main() {
+    int num_thread = 2;
+    omp_set_num_threads(num_thread);
     printf("Number of points %d\n", num_point);
     printf("Number of clusters %d\n", num_cluster);
     printf("Number of processors: %d\n", omp_get_num_procs());
+    printf("Number of threads: %d\n", num_thread);
 
     srand(int(time(NULL)));
 
-    double time_point1 = omp_get_wtime();
-    printf("Starting initialization..\n");
 
     vector<Point> points;
+    points = init_point();
     vector<Cluster> clusters;
+    clusters = init_cluster(points);
 
-    //The Cluster Initialization and the Point initialization are in parallel
-#pragma omp parallel
-    {
-#pragma omp sections
-        {
-#pragma omp section
-            {
-                printf("Creating points..\n");
-                points = init_point(num_point);
-                printf("Points initialized \n");
-            }
-#pragma omp section
-            {
-                printf("Creating clusters..\n");
-                clusters = init_cluster(num_cluster);
-                printf("Clusters initialized \n");
-            }
-        }
-    }
 
-    double time_point2 = omp_get_wtime();
-    double duration = time_point2 - time_point1;
+    double time_point1 = omp_get_wtime();
 
-    printf("Points and clusters generated in: %f seconds\n", duration);
 
     bool conv = true;
     int iterations = 0;
@@ -79,8 +64,8 @@ int main() {
 
     }
 
-    double time_point3 = omp_get_wtime();
-    duration = time_point3 - time_point2;
+    double time_point2 = omp_get_wtime();
+    double duration = time_point2 - time_point1;
 
     printf("Number of iterations: %d, total time: %f seconds, time per iteration: %f seconds\n",
            iterations, duration, duration/iterations);
@@ -98,33 +83,51 @@ int main() {
 }
 
 //Initialize num_point Points
-vector<Point> init_point(int num_point){
+vector<Point> init_point(){
 
+
+    string fname = "/home/federico/CLionProjects/kmeans_cuda/datasets/2D_data_3.csv";
+    vector<vector<string>> content;
+    vector<string> row;
+    string line, word;
+    fstream file (fname, ios::in);
+    if(file.is_open())
+    {
+        while(getline(file, line))
+        {
+            row.clear();
+
+            stringstream str(line);
+
+            while(getline(str, word, ','))
+                row.push_back(word);
+            content.push_back(row);
+        }
+    }
     vector<Point> points(num_point);
     Point *ptr = &points[0];
-
-
-    for(int i = 0; i < num_point; i++){
-
-        Point* point = new Point(rand() % (int)max_range, rand() % (int)max_range);
-
+    cout<<"Datapoints:"<<"\n";
+    for(int i=0;i<content.size();i++)
+    {
+        cout<<content[i][0]<<","<<content[i][0]<<"\n";
+        Point* point = new Point(std::stod(content[i][0]), std::stod(content[i][1]));
         ptr[i] = *point;
-
     }
-
     return points;
 
 }
 
 //Initialize num_cluster Clusters
-vector<Cluster> init_cluster(int num_cluster){
+vector<Cluster> init_cluster(vector<Point> points){
 
     vector<Cluster> clusters(num_cluster);
     Cluster* ptr = &clusters[0];
+    cout<<"Clusters:"<<"\n";
 
     for(int i = 0; i < num_cluster; i++){
-
-        Cluster *cluster = new Cluster(rand() % (int) max_range, rand() % (int) max_range);
+        int n = rand() % (int) num_point;
+        Cluster *cluster = new Cluster(points[n].get_x_coord(), points[n].get_y_coord());
+        cout<<points[n].get_x_coord()<<", "<<points[n].get_y_coord()<<"\n";
 
         ptr[i] = *cluster;
 
