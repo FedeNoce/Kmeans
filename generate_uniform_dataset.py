@@ -32,7 +32,7 @@ def main():
     # two dimensional datasets
 
     #generate_dataset(points=500, n_features=2, centers=4, std=3, file_name=f'2D_data_3.csv', centroids_file_name=f'2D_data_3_centroids.csv', output_directory=DATASETS_DIR)
-    generate_uniform_dataset(points=1000, n_features=2, file_name=f'2D_data_uniform.csv',  output_directory=DATASETS_DIR)
+    generate_uniform_dataset(points=10000, n_features=2, file_name=f'2D_data_uniform.csv',  output_directory=DATASETS_DIR)
 
 
 

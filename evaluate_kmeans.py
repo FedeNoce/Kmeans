@@ -22,6 +22,8 @@ with open('results/2D_data_3_results.csv', 'r') as read_obj:
 x_coords = np.array((x_coords))
 y_coords = np.array((y_coords))
 points_assn = np.array((points_assn))
+#points_assn = np.zeros((x_coords.shape))
+
 
 plt.scatter(x_coords, y_coords, c=points_assn)
 plt.show()

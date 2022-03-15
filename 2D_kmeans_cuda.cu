@@ -1,3 +1,13 @@
+/*
+ ============================================================================
+ Name        : 2D_kmeans_cuda.cu
+ Author      : Federico Nocentini & Corso Vignoli
+ Version     :
+ Copyright   :
+ Description : CUDA implementation of K-means clustering algorithm
+ ============================================================================
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -5,9 +15,9 @@
 #include <string.h>
 
 
-#define N 100000
-#define K 10
-#define MAX_ITER 50
+#define N 500000
+#define K 5
+#define MAX_ITER 20
 #define TPB 128
 #define EPSILON 0.00001
 
@@ -43,7 +53,6 @@ __global__ void kMeansClusterAssignment(const float *d_datapoints_x, const float
 
     //assign closest cluster id for this datapoint/thread
     d_clust_assn[idx]=closest_centroid;
-    //d_clust_sizes[closest_centroid]+=1;
 }
 __global__ void kMeansCentroidUpdate_Sum(const float *d_datapoints_x, const float *d_datapoints_y, const int *d_clust_assn, float *d_centroids_sum_x, float *d_centroids_sum_y, int *d_clust_sizes) {
 
@@ -57,12 +66,11 @@ __global__ void kMeansCentroidUpdate_Sum(const float *d_datapoints_x, const floa
     atomicAdd(&(d_centroids_sum_x[clust_id]), d_datapoints_x[idx]);
     atomicAdd(&(d_centroids_sum_y[clust_id]), d_datapoints_y[idx]);
     atomicAdd(&(d_clust_sizes[clust_id]), 1);
-    //d_clust_sizes[clust_id]+=1;
 
 
 }
 
-//Function to stop the algorithm when convergence is reached
+/*//Function to stop the algorithm when convergence is reached
 int compareArrays(float a[], float b[], int n) {
     int i;
     for(i=0; i<n; i++){
@@ -70,7 +78,7 @@ int compareArrays(float a[], float b[], int n) {
             return 0;
     }
     return 1;
-}
+}*/
 
 
 int main()
@@ -78,10 +86,10 @@ int main()
     srand(time(NULL));   // Initialization, should only be called once.
     FILE *fpt;
     //FILE *fpt_centroids;
+    const char *file_name = "/home/federico/CLionProjects/kmeans_cuda/datasets/2D_data_500000.csv";
+    fpt = fopen(file_name, "r");
+    printf("%s\n", file_name);
 
-    //fpt = fopen("/home/federico/CLionProjects/kmeans_cuda/datasets/2D_data_3.csv", "r");
-    fpt = fopen("/home/federico/CLionProjects/kmeans_cuda/datasets/2D_data_uniform.csv", "r");
-    //fpt_centroids = fopen("/home/federico/CLionProjects/kmeans_cuda/datasets/2D_data_3_centroids.csv", "r");
 
     //allocate memory on the device for the data points
     float *d_datapoints_x;
@@ -118,23 +126,23 @@ int main()
 
 
     //initalize datapoints from csv
-    printf("DataPoints: \n");
+    //printf("DataPoints: \n");
     for(int i=0;i<N;++i){
         fscanf(fpt,"%f,%f\n", &h_datapoints_x[i], &h_datapoints_y[i]);
-        printf("(%f, %f) \n",  h_datapoints_x[i], h_datapoints_y[i]);
+        //printf("(%f, %f) \n",  h_datapoints_x[i], h_datapoints_y[i]);
     }
     fclose(fpt);
 
 
     //initialize centroids, choose k-random points from datapoints
-    printf("Clusters: \n");
+    //printf("Clusters: \n");
     for(int i=0;i<K;++i){
         int r = rand() % N;
         h_centroids_x[i] = h_datapoints_x[r];
         h_centroids_y[i] = h_datapoints_y[r];
         h_centroids_sum_x[i]=0.0;
         h_centroids_sum_y[i]=0.0;
-        printf("(%f, %f) \n",  h_centroids_x[i], h_centroids_y[i]);
+        //printf("(%f, %f) \n",  h_centroids_x[i], h_centroids_y[i]);
         h_clust_sizes[i]=0;
     }
 
@@ -157,15 +165,13 @@ int main()
 
     while(cur_iter < MAX_ITER)
     {
-        printf("Iter %d: \n",cur_iter);
+        //printf("Iter %d: \n",cur_iter);
         //Start time for iteration
         clock_t start_iter = clock();
 
 
         //Points assg
         kMeansClusterAssignment<<<(N+TPB-1)/TPB, TPB>>>(d_datapoints_x, d_datapoints_y, d_clust_assn, d_centroids_x, d_centroids_y);
-
-        //cudaMemcpy(h_clust_sizes,d_clust_sizes,K*sizeof(int),cudaMemcpyDeviceToHost);
 
 
         //reset centroids and cluster sizes (will be updated in the next kernel)
@@ -186,13 +192,13 @@ int main()
             h_centroids_y[i]=h_centroids_sum_y[i]/h_clust_sizes[i];
         }
         for(int i=0; i < K; i++){
-            printf("C %d: (%f, %f)\n",i,h_centroids_x[i],h_centroids_y[i]);
+            //printf("C %d: (%f, %f)\n",i,h_centroids_x[i],h_centroids_y[i]);
         }
 
         //Stop time for iteration
         clock_t end_iter = clock();
         float seconds_iter = (float)(end_iter - start_iter) / CLOCKS_PER_SEC;
-        printf("Time for iter: %f\n", seconds_iter);
+       // printf("Time for iter: %f\n", seconds_iter);
 
         //Compare the centroids for stop the clustering
         cudaMemcpy(d_centroids_x,h_centroids_x,K*sizeof(float),cudaMemcpyHostToDevice);
@@ -205,8 +211,8 @@ int main()
 
     clock_t end = clock();
     float seconds = (float)(end - start) / CLOCKS_PER_SEC;
-    printf("Time for clustering: %f\n", seconds);
-
+    printf("Time for clustering: %f s \n", seconds);
+    printf("Time for average iteration: %f s\n", seconds / MAX_ITER);
     FILE *res;
 
     res = fopen("/home/federico/CLionProjects/kmeans_cuda/results/2D_data_3_results.csv", "w+");

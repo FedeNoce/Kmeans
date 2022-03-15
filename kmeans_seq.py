@@ -1,4 +1,11 @@
-#Kmeans 2D sequential implementation
+# ============================================================================
+# Name        : kmeans_seq.py
+# Author      : Federico Nocentini & Corso Vignoli
+# Version     :
+# Copyright   :
+# Description : Python implementation of K-means clustering algorithm
+# ============================================================================
+
 
 import csv
 import numpy as np
@@ -7,11 +14,13 @@ import random
 import math
 import time
 
-#Function for euclidean distance
-def euclidean_distance_2D(x1, x2, y1, y2):
-    return math.sqrt(((x1-y1) ** 2) + ((x2-y2) ** 2))
 
-#Function for centroid assignment
+# Function for euclidean distance
+def euclidean_distance_2D(x1, x2, y1, y2):
+    return math.sqrt(((x1 - y1) ** 2) + ((x2 - y2) ** 2))
+
+
+# Function for centroid assignment
 def centroid_assg(points, centroids, points_assg):
     for i in range(n):
         distance = 100000
@@ -21,7 +30,8 @@ def centroid_assg(points, centroids, points_assg):
                 distance = dist
                 points_assg[i] = j
 
-#Function for centroid update
+
+# Function for centroid update
 def centroid_update(points, points_assgn):
     centroids_sum = np.zeros((k, 2))
     cluster_size = np.zeros(k)
@@ -32,14 +42,14 @@ def centroid_update(points, points_assgn):
         centroids_sum[clust_id, 0] += points[i, 0]
         centroids_sum[clust_id, 1] += points[i, 1]
     cluster_size = np.vstack((cluster_size, cluster_size))
-    return centroids_sum/cluster_size.T
+    return centroids_sum / cluster_size.T
 
 
 num_iter = 20
-k = 4
+k = 5
 n = 0
 
-#Read the data
+# Read the data
 with open('datasets/2D_data_3.csv', 'r') as read_obj:
     # pass the file object to reader() to get the reader object
     csv_reader = csv.reader(read_obj)
@@ -47,14 +57,14 @@ with open('datasets/2D_data_3.csv', 'r') as read_obj:
     x_coords = []
     y_coords = []
     for row in csv_reader:
-        n = n+1
+        n = n + 1
         x_coords.append(float(row[0]))
         y_coords.append(float(row[1]))
 
 points = np.vstack((x_coords, y_coords))
 points = points.T
 
-#K-means iterations
+# K-means iterations
 centroids = np.zeros((k, 2))
 points_assg = np.zeros((n))
 for i in range(k):

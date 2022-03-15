@@ -1,4 +1,12 @@
-
+/*
+ ============================================================================
+ Name        : Kmeans_openMp.cpp
+ Author      : Federico Nocentini & Corso Vignoli
+ Version     :
+ Copyright   :
+ Description : OpenMP implementation of K-means clustering algorithm
+ ============================================================================
+ */
 #include <iostream>
 #include <cmath>
 #include <fstream>
@@ -27,7 +35,7 @@ void draw_chart_gnu(vector<Point> &points);
 
 
 int main() {
-    int num_thread = 2;
+    int num_thread = 6;
     omp_set_num_threads(num_thread);
     printf("Number of points %d\n", num_point);
     printf("Number of clusters %d\n", num_cluster);
@@ -136,10 +144,6 @@ vector<Cluster> init_cluster(vector<Point> points){
     return clusters;
 }
 
-//For each Point, compute the distance between each Cluster and assign the Point to the nearest Cluster
-//The distance is compute through Euclidean Distance
-//The outer for is parallel, with private=min_distance, min_index, points_size, clusters_size and clustes while the
-//vector of Points is shared. The amount of computation performed per Point is constant, so static thread scheduling was chosen
 
 void compute_distance(vector<Point> &points, vector<Cluster> &clusters){
 
@@ -174,6 +178,7 @@ void compute_distance(vector<Point> &points, vector<Cluster> &clusters){
 
             }
             point.set_cluster_id(min_index);
+#pragma omp critical
             clusters[min_index].add_point(point);
 
         }
@@ -188,8 +193,6 @@ double euclidean_dist(Point point, Cluster cluster){
     return distance;
 }
 
-//For each cluster, update the coords. If only one cluster moves, conv will be TRUE
-//A parallel for was chosen for each cluster with lastprivate=conv
 bool update_clusters(vector<Cluster> &clusters){
 
     bool conv = false;
