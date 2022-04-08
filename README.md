@@ -20,7 +20,7 @@ In order to get a local copy and run some tests, follow these simple steps.
 
 1. Clone the repo
 ```sh
-git clone git clone https://github.com/FedeNoce/Kmeans.git
+git clone https://github.com/FedeNoce/Kmeans.git
 ```
 2. Chose the implementation:  ```kmeans_seq.py``` for sequential, ```Kmeans_openMp.cpp``` for parallel with OpenMP, ```2D_kmeans_cuda.cu``` for parallel with CUDA.
 3. Choose the dataset and copy the file path in the code
