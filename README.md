@@ -1,11 +1,13 @@
 # Kmeans Implementation
 
+![alt text](https://github.com/FedeNoce/Kmeans/blob/master/.idea/c.jpg)
+
 ## About The Project
 We implemented the 2D Kmeans algorithm in three different ways:
 1) A sequential mode in Python
 2) A Parallel mode in OpenMP
 3) A Parallel mode in Cuda
-![alt text](https://github.com/FedeNoce/Kmeans/blob/master/.idea/c.jpg)
+
 ### Built With
 
 * [Python](https://www.python.org/)
