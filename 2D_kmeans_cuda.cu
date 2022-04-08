@@ -70,16 +70,6 @@ __global__ void kMeansCentroidUpdate_Sum(const float *d_datapoints_x, const floa
 
 }
 
-/*//Function to stop the algorithm when convergence is reached
-int compareArrays(float a[], float b[], int n) {
-    int i;
-    for(i=0; i<n; i++){
-        if(abs(a[i]-b[i]) > EPSILON)
-            return 0;
-    }
-    return 1;
-}*/
-
 
 int main()
 {
