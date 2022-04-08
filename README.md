@@ -24,6 +24,7 @@ git clone git clone https://github.com/FedeNoce/Kmeans.git
 3. Choose the dataset and copy the file path in the implementation
 4. Set the parameters with your tests necessities
 5. Run the tests
+6. Evaluate the clustering of the tests running ```evaluate_kmeans.py``` 
 ## Authors
 
 * [**Corso Vignoli**](https://github.com/CVignoli)
