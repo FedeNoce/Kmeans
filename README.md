@@ -17,10 +17,10 @@ We implemented the 2D Kmeans algorithm in three different ways:
 To get a local copy and run some tests follow these simple steps.
 
 1. Clone the repo
-'''sh
-git clone https://github.com/FedeNoce/Kmeans.git
-'''
-2. Chose the implementation: '''kmeans_seq.py''' for Sequential, '''Kmeans_openMp.cpp''' for parallel with OpenMP, 2D_kmeans_cuda.cu for parallel with CUDA.
+```sh
+git clone git clone https://github.com/FedeNoce/Kmeans.git
+```
+2. Chose the implementation:  ```kmeans_seq.py``` for sequential, ```Kmeans_openMp.cpp``` for parallel with OpenMP, ```2D_kmeans_cuda.cu``` for parallel with CUDA.
 3. Choose the dataset and copy the file path in the implementation
 4. Set the parameters with your tests necessities
 5. Run the test
