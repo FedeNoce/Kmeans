@@ -23,7 +23,7 @@ git clone git clone https://github.com/FedeNoce/Kmeans.git
 2. Chose the implementation:  ```kmeans_seq.py``` for sequential, ```Kmeans_openMp.cpp``` for parallel with OpenMP, ```2D_kmeans_cuda.cu``` for parallel with CUDA.
 3. Choose the dataset and copy the file path in the implementation
 4. Set the parameters with your tests necessities
-5. Run the test
+5. Run the tests
 ## Authors
 
 * [**Corso Vignoli**](https://github.com/CVignoli)
