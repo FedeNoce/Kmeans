@@ -14,6 +14,7 @@ We implemented the 2D Kmeans algorithm in three different ways:
 * [OpenMP](https://www.openmp.org/)
 * [CUDA](https://developer.nvidia.com/cuda-zone)
 
+For more information, read the [report](reports/Kmeans_Report.pdf) or the [presentation](reports/KMeans_Presentation.pdf)
 ## Getting Started
 
 In order to get a local copy and run some tests, follow these simple steps.
